@@ -165,8 +165,11 @@ class Translator {
     
         // Procesar lista de variables
         while (this.currentToken && this.currentToken.type === TOKEN_TYPES.IDENTIFIER) {
+            // --- CORRECCIÓN: siempre anteponer la indentación en la primera variable ---
             if (!firstVar) {
                 this.pythonCode += '\n' + indent;
+            } else {
+                this.pythonCode += indent;
             }
         
             const varName = this.currentToken.value;
@@ -423,6 +426,7 @@ class Translator {
         }
     }
 
+    // --- CORRECCIÓN CRUCIAL: restaurar currentIndex al END, no al START ---
     translateExpresionToString() {
         const startIndex = this.currentIndex;
         const oldPythonCode = this.pythonCode;
@@ -431,9 +435,12 @@ class Translator {
         this.translateExpresion();
         const expression = this.pythonCode;
         
-        // Restaurar estado
+        // Capturar el índice final después del parseo de la expresión
+        const endIndex = this.currentIndex;
+        
+        // Restaurar estado, pero mantener el puntero al final de la expresión
         this.pythonCode = oldPythonCode;
-        this.currentIndex = startIndex;
+        this.currentIndex = endIndex;
         this.currentToken = this.tokens[this.currentIndex];
         
         return expression.trim();
