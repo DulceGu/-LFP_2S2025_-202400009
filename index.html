@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaBridge - Traductor Java a Python</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JavaBridge - Traductor Java a Python</h1>
+            <p class="subtitle">Lenguajes Formales y de Programación</p>
+        </header>
+
+        <div class="menu-bar">
+            <div class="menu-section">
+                <span class="menu-title">ARCHIVO</span>
+                <button id="btn-new">Nuevo</button>
+                <button id="btn-open">Abrir</button>
+                <button id="btn-save">Guardar</button>
+                <button id="btn-save-python">Guardar Python como</button>
+                <button id="btn-exit">Salir</button>
+            </div>
+            <div class="menu-section">
+                <span class="menu-title">TRADUCIR</span>
+                <button id="btn-translate">Generar Traducción</button>
+                <button id="btn-tokens">Ver Tokens</button>
+                <button id="btn-simulate">Simular Ejecución</button>
+            </div>
+            <div class="menu-section">
+                <span class="menu-title">AYUDA</span>
+                <button id="btn-about">Acerca de</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="code-section">
+                <h2>Código Java</h2>
+                <textarea id="java-code" placeholder="// Escribe tu código Java aquí">
+public class MiPrograma {
+    public static void main(String[] args) {
+        // Declaraciones
+        int contador = 0;
+        String mensaje = "Inicio del programa";
+        boolean activo = true;
+
+        System.out.println(mensaje);
+
+        // Ciclo for
+        for (int i = 1; i <= 5; i++) {
+            System.out.println("Iteracion: " + i);
+            contador = contador + i;
+        }
+
+        // Condicional
+        if (contador > 10) {
+            System.out.println("Contador mayor a 10: " + contador);
+        } else {
+            System.out.println("Contador menor o igual a 10");
+        }
+
+        // Ciclo while
+        while (activo) {
+            System.out.println("Ejecutando while");
+            activo = false;
+        }
+    }
+}</textarea>
+            </div>
+
+            <div class="code-section">
+                <h2>Código Python Traducido</h2>
+                <textarea id="python-code" placeholder="El código Python traducido aparecerá aquí" readonly></textarea>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="results-tabs">
+                <button class="tab-button active" data-tab="tokens">Tokens</button>
+                <button class="tab-button" data-tab="lexical-errors">Errores Léxicos</button>
+                <button class="tab-button" data-tab="syntax-errors">Errores Sintácticos</button>
+                <button class="tab-button" data-tab="simulation">Simulación</button>
+            </div>
+
+            <div class="tab-content">
+                <div id="tokens-tab" class="tab-pane active">
+                    <table id="tokens-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Lexema</th>
+                                <th>Tipo</th>
+                                <th>Línea</th>
+                                <th>Columna</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="lexical-errors-tab" class="tab-pane">
+                    <table id="lexical-errors-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Error</th>
+                                <th>Descripción</th>
+                                <th>Línea</th>
+                                <th>Columna</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="syntax-errors-tab" class="tab-pane">
+                    <table id="syntax-errors-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Error</th>
+                                <th>Descripción</th>
+                                <th>Línea</th>
+                                <th>Columna</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="simulation-tab" class="tab-pane">
+                    <div id="simulation-output"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <span id="token-count">Tokens generados: 0</span>
+            <button id="btn-download-html">Descargar HTML</button>
+        </div>
+    </div>
+
+    <!-- Modal para Acerca de -->
+    <div id="about-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Acerca de JavaBridge</h2>
+            <p>Traductor de Java a Python</p>
+            <p>Desarrollado para el curso de Lenguajes Formales y de Programación</p>
+            <p>Estudiante: [Tu nombre]</p>
+            <p>Carnet: [Tu carnet]</p>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/lexer.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/translator.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
