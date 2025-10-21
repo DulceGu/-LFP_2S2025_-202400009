@@ -343,20 +343,23 @@ class Parser {
             return false;
         }
         
+        // IDENTIFICADOR
         if (this.currentToken.type === TOKEN_TYPES.IDENTIFIER) {
             this.advance();
             return true;
         }
         
+        // LITERALES (enteros, decimales, cadenas, caracteres, booleanos)
         if (this.currentToken.type === TOKEN_TYPES.INTEGER || 
             this.currentToken.type === TOKEN_TYPES.DECIMAL ||
             this.currentToken.type === TOKEN_TYPES.STRING ||
             this.currentToken.type === TOKEN_TYPES.CHARACTER ||
-            this.currentToken.type === TOKEN_TYPES.BOOLEAN) {
+            this.currentToken.type === TOKEN_TYPES.BOOLEAN) {  
             this.advance();
             return true;
         }
         
+        // EXPRESIÓN ENTRE PARÉNTESIS
         if (this.currentToken.value === '(') {
             this.advance(); // (
             if (!this.parseExpresion()) return false;

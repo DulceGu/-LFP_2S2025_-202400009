@@ -54,7 +54,7 @@ const TOKEN_TYPES = {
 // Palabras reservadas
 const KEYWORDS = new Set([
     'public', 'class', 'static', 'void', 'main', 'String',
-    'int', 'double', 'char', 'boolean', 'true', 'false',
+    'int', 'double', 'char', 'boolean',
     'if', 'else', 'for', 'while', 'System', 'out', 'println'
 ]);
 

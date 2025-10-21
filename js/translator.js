@@ -80,15 +80,47 @@ class Translator {
         while (this.currentToken && 
                !(this.currentToken.type === TOKEN_TYPES.SEPARATOR && 
                  this.currentToken.value === '}')) {
+            
+            // Manejar comentarios
+            if (this.currentToken.type === TOKEN_TYPES.COMMENT) {
+                this.translateComment();
+                continue;
+            }
+            
+            // Saltar punto y coma vacíos
+            if (this.currentToken.type === TOKEN_TYPES.SEPARATOR && this.currentToken.value === ';') {
+                this.advance();
+                continue;
+            }
+            
             this.translateSentencia();
         }
     }
 
-    translateSentencia() {
-        if (this.currentToken.type === TOKEN_TYPES.SEPARATOR && this.currentToken.value === ';') {
-            this.advance(); // Sentencia vacía
-            return;
+    translateComment() {
+        const indent = this.getIndent();
+        const comment = this.currentToken.value;
+        
+        // Convertir comentarios de Java a Python
+        if (comment.startsWith('//')) {
+            // Comentario de línea
+            this.pythonCode += indent + '#' + comment.substring(2) + '\n';
+        } else if (comment.startsWith('/*') && comment.endsWith('*/')) {
+            // Comentario de bloque
+            const blockComment = comment.substring(2, comment.length - 2);
+            // Para comentarios de bloque multilínea, usar triple comillas simples
+            if (blockComment.includes('\n')) {
+                this.pythonCode += indent + "'''" + blockComment + "'''\n";
+            } else {
+                this.pythonCode += indent + '#' + blockComment + '\n';
+            }
         }
+        
+        this.advance();
+    }
+
+    translateSentencia() {
+        const indent = this.getIndent();
         
         // DECLARACION
         if (this.isType()) {
