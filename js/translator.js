@@ -5,21 +5,13 @@ class Translator {
         this.currentToken = this.tokens.length > 0 ? this.tokens[0] : null;
         this.pythonCode = '';
         this.indentLevel = 0;
+        this.variables = new Set(); // Para trackear variables declaradas
     }
 
     advance() {
         this.currentIndex++;
         this.currentToken = this.currentIndex < this.tokens.length ? 
             this.tokens[this.currentIndex] : null;
-    }
-
-    match(type, value = null) {
-        if (this.currentToken && this.currentToken.type === type && 
-            (value === null || this.currentToken.value === value)) {
-            this.advance();
-            return true;
-        }
-        return false;
     }
 
     getIndent() {
@@ -31,6 +23,7 @@ class Translator {
         this.currentIndex = 0;
         this.currentToken = this.tokens.length > 0 ? this.tokens[0] : null;
         this.indentLevel = 0;
+        this.variables = new Set();
 
         this.translateProgram();
         return this.pythonCode;
@@ -110,9 +103,12 @@ class Translator {
             const blockComment = comment.substring(2, comment.length - 2);
             // Para comentarios de bloque multilínea, usar triple comillas simples
             if (blockComment.includes('\n')) {
-                this.pythonCode += indent + "'''" + blockComment + "'''\n";
+                const lines = blockComment.split('\n');
+                for (const line of lines) {
+                    this.pythonCode += indent + '# ' + line.trim() + '\n';
+                }
             } else {
-                this.pythonCode += indent + '#' + blockComment + '\n';
+                this.pythonCode += indent + '# ' + blockComment + '\n';
             }
         }
         
@@ -120,8 +116,6 @@ class Translator {
     }
 
     translateSentencia() {
-        const indent = this.getIndent();
-        
         // DECLARACION
         if (this.isType()) {
             this.translateDeclaracion();
@@ -164,32 +158,61 @@ class Translator {
 
     translateDeclaracion() {
         const indent = this.getIndent();
-        this.translateTipo();
-        this.translateListaVars();
-        this.pythonCode += '\n';
+        const tipo = this.currentToken.value;
+        this.advance(); // tipo
+    
+        let firstVar = true;
+    
+        // Procesar lista de variables
+        while (this.currentToken && this.currentToken.type === TOKEN_TYPES.IDENTIFIER) {
+            if (!firstVar) {
+                this.pythonCode += '\n' + indent;
+            }
+        
+            const varName = this.currentToken.value;
+            this.variables.add(varName);
+            this.pythonCode += varName + ' = ';
+            this.advance(); // ID
+        
+            if (this.currentToken && this.currentToken.value === '=') {
+                this.advance(); // =
+                this.translateExpresion();
+            } else {
+                // Asignar valor por defecto según el tipo
+                switch(tipo) {
+                    case 'int':
+                        this.pythonCode += '0';
+                        break;
+                    case 'double':
+                        this.pythonCode += '0.0';
+                        break;
+                    case 'char':
+                        this.pythonCode += "''";
+                        break;
+                    case 'String':
+                        this.pythonCode += '""';
+                        break;
+                    case 'boolean':
+                        this.pythonCode += 'False';
+                        break;
+                    default:
+                        this.pythonCode += 'None';
+                }
+            }
+        
+            this.pythonCode += '  # Declaracion: ' + tipo;
+        
+            if (this.currentToken && this.currentToken.value === ',') {
+                this.pythonCode += '\n';
+                this.advance(); // ,
+                firstVar = false;
+            } else {
+                this.pythonCode += '\n';
+                break;
+            }
+        }
+    
         this.advance(); // ;
-    }
-
-    translateListaVars() {
-        this.translateVarDecl();
-        
-        while (this.currentToken && this.currentToken.value === ',') {
-            this.pythonCode += ', ';
-            this.advance(); // ,
-            this.translateVarDecl();
-        }
-    }
-
-    translateVarDecl() {
-        const varName = this.currentToken.value;
-        this.pythonCode += varName;
-        this.advance(); // ID
-        
-        if (this.currentToken && this.currentToken.value === '=') {
-            this.pythonCode += ' = ';
-            this.advance(); // =
-            this.translateExpresion();
-        }
     }
 
     translateAsignacion() {
@@ -241,50 +264,69 @@ class Translator {
 
     translateFor() {
         const indent = this.getIndent();
-        this.pythonCode += indent;
-        
+    
         this.advance(); // for
         this.advance(); // (
-        
-        // Inicialización
+    
+        // Inicialización - manejar como declaración separada
         if (this.isType()) {
-            this.translateDeclaracion();
-            // En Python, las declaraciones en for no son válidas, así que las movemos arriba
-            // Aquí solo manejamos la asignación
-        } else if (this.currentToken.type === TOKEN_TYPES.IDENTIFIER && 
-                   this.peek() && this.peek().value === '=') {
-            const initVar = this.currentToken.value;
+            // Declaración con tipo (int i = 1)
+            const tipo = this.currentToken.value;
+            this.advance(); // tipo
+            const varName = this.currentToken.value;
             this.advance(); // ID
             this.advance(); // =
-            const initExpr = this.translateExpresionToString();
-            this.pythonCode += indent + initVar + ' = ' + initExpr + '\n';
-        }
+            const initValue = this.translateExpresionToString();
         
+            this.pythonCode += indent + varName + ' = ' + initValue + '  # Declaracion: ' + tipo + '\n';
+        } else if (this.currentToken.type === TOKEN_TYPES.IDENTIFIER) {
+            // Asignación simple (i = 0)
+            const varName = this.currentToken.value;
+            this.advance(); // ID
+            this.advance(); // =
+            const initValue = this.translateExpresionToString();
+        
+            this.pythonCode += indent + varName + ' = ' + initValue + '\n';
+        }
+        this.advance(); // ;
+    
         // Condición
         let condition = 'True';
-        if (this.currentToken.value !== ';') {
+        if (this.currentToken && this.currentToken.value !== ';') {
             condition = this.translateExpresionToString();
         }
         this.advance(); // ;
-        
-        // Incremento
+    
+        // Incremento - CAPTURAR PERO NO ESCRIBIR AÚN
         let increment = '';
-        if (this.currentToken.value !== ')') {
-            increment = this.translateExpresionToString();
+        if (this.currentToken && this.currentToken.value !== ')') {
+            if (this.currentToken.type === TOKEN_TYPES.IDENTIFIER && 
+                this.peek() && (this.peek().value === '++' || this.peek().value === '--')) {
+            
+                const varName = this.currentToken.value;
+                const op = this.peek().value;
+                this.advance(); // ID
+                this.advance(); // ++ or --
+            
+                increment = varName + (op === '++' ? ' += 1' : ' -= 1');
+            } else {
+                increment = this.translateExpresionToString();
+            }
         }
         this.advance(); // )
-        
+    
+        // Escribir el while
         this.pythonCode += indent + 'while ' + condition + ':\n';
         this.indentLevel++;
-        
+    
         this.advance(); // {
         this.translateSentencias();
-        
-        // Agregar incremento al final del bloque
+    
+        // Agregar incremento al final del bloque SI EXISTE
         if (increment) {
             this.pythonCode += this.getIndent() + increment + '\n';
         }
-        
+    
         this.advance(); // }
         this.indentLevel--;
     }
@@ -313,18 +355,50 @@ class Translator {
     translatePrint() {
         const indent = this.getIndent();
         this.pythonCode += indent;
-        
+    
         this.advance(); // System
         this.advance(); // .
         this.advance(); // out
         this.advance(); // .
         this.advance(); // println
         this.advance(); // (
-        
+    
         this.pythonCode += 'print(';
-        this.translateExpresion();
+    
+        // Capturar la expresión completa
+        const startIndex = this.currentIndex;
+        let expression = '';
+    
+        while (this.currentToken && this.currentToken.value !== ')') {
+            if (this.currentToken.type === TOKEN_TYPES.STRING) {
+                expression += '"' + this.currentToken.value + '"';
+            } else if (this.currentToken.type === TOKEN_TYPES.IDENTIFIER) {
+                // Para variables, agregar str() alrededor
+                expression += 'str(' + this.currentToken.value + ')';
+            } else if (this.currentToken.type === TOKEN_TYPES.INTEGER || 
+                    this.currentToken.type === TOKEN_TYPES.DECIMAL ||
+                    this.currentToken.type === TOKEN_TYPES.BOOLEAN) {
+                // Para números y booleanos, también convertir a string
+                const value = this.currentToken.type === TOKEN_TYPES.BOOLEAN ? 
+                            (this.currentToken.value === 'true' ? 'True' : 'False') : 
+                            this.currentToken.value;
+                expression += 'str(' + value + ')';
+            } else if (this.currentToken.value === '+') {
+                expression += ' + ';
+            } else {
+                expression += this.currentToken.value;
+            }
+            this.advance();
+        }
+    
+        // Si la expresión ya es un string literal, no necesita str()
+        if (expression.startsWith('"') && expression.endsWith('"') && !expression.includes('+')) {
+            this.pythonCode += expression;
+        } else {
+            this.pythonCode += expression;
+        }
+    
         this.pythonCode += ')';
-        
         this.advance(); // )
         this.pythonCode += '\n';
         this.advance(); // ;
@@ -342,16 +416,6 @@ class Translator {
             else if (op === '!=') pyOp = '!=';
             else if (op === '&&') pyOp = 'and';
             else if (op === '||') pyOp = 'or';
-            else if (op === '++') { 
-                // Manejar incremento como expresión separada
-                this.advance();
-                return;
-            }
-            else if (op === '--') {
-                // Manejar decremento como expresión separada
-                this.advance();
-                return;
-            }
             
             this.pythonCode += ' ' + pyOp + ' ';
             this.advance(); // Operador
@@ -361,31 +425,51 @@ class Translator {
 
     translateExpresionToString() {
         const startIndex = this.currentIndex;
-        const startToken = this.currentToken;
+        const oldPythonCode = this.pythonCode;
+        this.pythonCode = '';
         
-        // Crear un traductor temporal para obtener la expresión como string
-        const tempTranslator = new Translator(this.tokens.slice(startIndex));
-        let expression = '';
+        this.translateExpresion();
+        const expression = this.pythonCode;
         
-        const originalAdvance = tempTranslator.advance;
-        tempTranslator.advance = function() {
-            if (this.currentToken) {
-                expression += this.currentToken.value + ' ';
-            }
-            originalAdvance.call(this);
-        };
-        
-        tempTranslator.translateExpresion();
-        
-        // Avanzar el traductor principal
-        while (this.currentIndex < startIndex + tempTranslator.currentIndex) {
-            this.advance();
-        }
+        // Restaurar estado
+        this.pythonCode = oldPythonCode;
+        this.currentIndex = startIndex;
+        this.currentToken = this.tokens[this.currentIndex];
         
         return expression.trim();
     }
 
     translateTermino() {
+        this.translateFactor();
+        
+        while (this.currentToken && (this.currentToken.value === '+' || this.currentToken.value === '-')) {
+            const op = this.currentToken.value;
+            this.pythonCode += ' ' + op + ' ';
+            this.advance(); // Operador
+            this.translateFactor();
+        }
+    }
+
+    translateFactor() {
+        this.translatePrimario();
+        
+        while (this.currentToken && (this.currentToken.value === '*' || this.currentToken.value === '/')) {
+            const op = this.currentToken.value;
+            this.pythonCode += ' ' + op + ' ';
+            this.advance(); // Operador
+            this.translatePrimario();
+        }
+    }
+
+    translatePrimario() {
+        if (!this.currentToken) return;
+        
+        if (this.currentToken.type === TOKEN_TYPES.IDENTIFIER) {
+            this.pythonCode += this.currentToken.value;
+            this.advance();
+            return;
+        }
+        
         if (this.currentToken.type === TOKEN_TYPES.INTEGER || 
             this.currentToken.type === TOKEN_TYPES.DECIMAL) {
             this.pythonCode += this.currentToken.value;
@@ -411,12 +495,6 @@ class Translator {
             return;
         }
         
-        if (this.currentToken.type === TOKEN_TYPES.IDENTIFIER) {
-            this.pythonCode += this.currentToken.value;
-            this.advance();
-            return;
-        }
-        
         if (this.currentToken.value === '(') {
             this.pythonCode += '(';
             this.advance(); // (
@@ -429,9 +507,26 @@ class Translator {
         this.advance(); // En caso de error
     }
 
-    translateTipo() {
-        // En Python no necesitamos declarar tipos, así que ignoramos esta parte
-        this.advance(); // tipo
+    // Helper para detectar si necesita conversión a string
+    needsStringConversion(expression) {
+        // Si la expresión contiene + y no es puramente numérica, probablemente necesite str()
+        if (expression.includes('+')) {
+            // Si contiene variables o números mezclados con strings
+            const tokens = expression.split('+');
+            for (const token of tokens) {
+                const trimmed = token.trim();
+                // Si es un identificador (variable) o número puro
+                if (this.variables.has(trimmed) || /^\d+$/.test(trimmed) || /^\d+\.\d+$/.test(trimmed)) {
+                    return true;
+                }
+            }
+        }
+        // Si es solo una variable o número
+        const trimmed = expression.trim();
+        if (this.variables.has(trimmed) || /^\d+$/.test(trimmed) || /^\d+\.\d+$/.test(trimmed)) {
+            return true;
+        }
+        return false;
     }
 
     isType() {
